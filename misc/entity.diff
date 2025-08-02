@@ -1,0 +1,375 @@
+diff --git b/src/db/entity/generated/endpoint.rs a/src/db/entity/generated/endpoint.rs
+index 39fab27..ad08fec 100644
+--- b/src/db/entity/generated/endpoint.rs
++++ a/src/db/entity/generated/endpoint.rs
+@@ -3,18 +3,20 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{Id, TransportServiceType};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "endpoint")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub code: String,
+     pub name: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub transport_service_id: Vec<u8>,
+-    pub transport_service_type: i16,
++    pub transport_service_id: Id,
++    pub transport_service_type: TransportServiceType,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     #[sea_orm(column_type = "Text")]
+     pub options: String,
+     #[sea_orm(column_type = "Text", nullable)]
+diff --git b/src/db/entity/generated/endpoint_secret.rs a/src/db/entity/generated/endpoint_secret.rs
+index 8065e48..9e4c52d 100644
+--- b/src/db/entity/generated/endpoint_secret.rs
++++ a/src/db/entity/generated/endpoint_secret.rs
+@@ -3,17 +3,19 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "endpoint_secret")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub code: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub endpoint_id: Vec<u8>,
++    pub endpoint_id: Id,
+     pub version: i8,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub secret_id: Vec<u8>,
++    pub secret_id: Id,
+     pub enabled: bool,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/lock.rs a/src/db/entity/generated/lock.rs
+index 9bc483f..d572046 100644
+--- b/src/db/entity/generated/lock.rs
++++ a/src/db/entity/generated/lock.rs
+@@ -3,12 +3,14 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::LockType;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "lock")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false)]
+     pub code: String,
+-    pub lock_type: i16,
++    pub lock_type: LockType,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+ }
+diff --git b/src/db/entity/generated/message.rs a/src/db/entity/generated/message.rs
+index 9abc685..7ca28df 100644
+--- b/src/db/entity/generated/message.rs
++++ a/src/db/entity/generated/message.rs
+@@ -3,24 +3,26 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{EncryptionType, Id, KeySource};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "message")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false)]
+     pub id: i64,
+-    pub encryption_type: i8,
+-    pub key_source: i8,
++    pub encryption_type: EncryptionType,
++    pub key_source: KeySource,
+     pub key_code: String,
+     #[sea_orm(column_type = "Text")]
+     pub options: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub topic_id: Vec<u8>,
++    pub topic_id: Id,
+     #[sea_orm(column_type = "Text")]
+     pub data: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub endpoint_id: Vec<u8>,
++    pub endpoint_id: Id,
+     pub created_at: DateTimeUtc,
+ }
+ 
+diff --git b/src/db/entity/generated/pending_user.rs a/src/db/entity/generated/pending_user.rs
+index cadee98..8e278cb 100644
+--- b/src/db/entity/generated/pending_user.rs
++++ a/src/db/entity/generated/pending_user.rs
+@@ -3,11 +3,13 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "pending_user")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub username: String,
+     pub email: String,
+     #[sea_orm(column_type = "Text")]
+diff --git b/src/db/entity/generated/secret.rs a/src/db/entity/generated/secret.rs
+index 47bd8bd..4a9f731 100644
+--- b/src/db/entity/generated/secret.rs
++++ a/src/db/entity/generated/secret.rs
+@@ -3,15 +3,17 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{EncryptionType, Id, KeySource};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "secret")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     #[sea_orm(unique)]
+     pub code: String,
+-    pub encryption_type: i8,
+-    pub key_source: i8,
++    pub encryption_type: EncryptionType,
++    pub key_source: KeySource,
+     pub key_code: String,
+     #[sea_orm(column_type = "Text")]
+     pub options: String,
+diff --git b/src/db/entity/generated/subscription.rs a/src/db/entity/generated/subscription.rs
+index daeb8ea..b18206e 100644
+--- b/src/db/entity/generated/subscription.rs
++++ a/src/db/entity/generated/subscription.rs
+@@ -3,18 +3,20 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{Id, SubscriptionStatus};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "subscription")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub topic_id: Vec<u8>,
++    pub topic_id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub endpoint_id: Vec<u8>,
++    pub endpoint_id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
+-    pub status: i8,
++    pub user_id: Id,
++    pub status: SubscriptionStatus,
+     #[sea_orm(column_type = "Text", nullable)]
+     pub description: Option<String>,
+     pub created_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/subscription_offset.rs a/src/db/entity/generated/subscription_offset.rs
+index d14a7cf..84adec7 100644
+--- b/src/db/entity/generated/subscription_offset.rs
++++ a/src/db/entity/generated/subscription_offset.rs
+@@ -3,11 +3,13 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "subscription_offset")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub subscription_id: Vec<u8>,
++    pub subscription_id: Id,
+     pub next_message_id: i64,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/topic.rs a/src/db/entity/generated/topic.rs
+index e291139..f28cf2a 100644
+--- b/src/db/entity/generated/topic.rs
++++ a/src/db/entity/generated/topic.rs
+@@ -3,15 +3,17 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "topic")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub code: String,
+     pub name: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     #[sea_orm(column_type = "Text", nullable)]
+     pub description: Option<String>,
+     pub created_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/topic_permission.rs a/src/db/entity/generated/topic_permission.rs
+index b115bef..6f77a34 100644
+--- b/src/db/entity/generated/topic_permission.rs
++++ a/src/db/entity/generated/topic_permission.rs
+@@ -3,16 +3,18 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{Id, TopicPermissionType};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "topic_permission")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub topic_id: Vec<u8>,
++    pub topic_id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
+-    pub permission_type: i8,
++    pub user_id: Id,
++    pub permission_type: TopicPermissionType,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+ }
+diff --git b/src/db/entity/generated/transport_service.rs a/src/db/entity/generated/transport_service.rs
+index d62468c..cd05692 100644
+--- b/src/db/entity/generated/transport_service.rs
++++ a/src/db/entity/generated/transport_service.rs
+@@ -3,15 +3,17 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::{Id, TransportServiceType};
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "transport_service")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub name: String,
+-    pub transport_service_type: i16,
++    pub transport_service_type: TransportServiceType,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     #[sea_orm(column_type = "Text")]
+     pub options: String,
+     pub enabled: bool,
+diff --git b/src/db/entity/generated/transport_service_secret.rs a/src/db/entity/generated/transport_service_secret.rs
+index 6fbaa10..f5753e4 100644
+--- b/src/db/entity/generated/transport_service_secret.rs
++++ a/src/db/entity/generated/transport_service_secret.rs
+@@ -3,17 +3,19 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "transport_service_secret")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub code: String,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub transport_service_id: Vec<u8>,
++    pub transport_service_id: Id,
+     pub version: i8,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub secret_id: Vec<u8>,
++    pub secret_id: Id,
+     pub enabled: bool,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/user.rs a/src/db/entity/generated/user.rs
+index 15ecacd..baa2df0 100644
+--- b/src/db/entity/generated/user.rs
++++ a/src/db/entity/generated/user.rs
+@@ -3,11 +3,13 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+ 
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "user")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     pub username: String,
+     #[sea_orm(unique)]
+     pub email: String,
+diff --git b/src/db/entity/generated/user_role.rs a/src/db/entity/generated/user_role.rs
+index 6d0ecff..afc1c03 100644
+--- b/src/db/entity/generated/user_role.rs
++++ a/src/db/entity/generated/user_role.rs
+@@ -3,13 +3,15 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "user_role")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
++    pub id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     pub role_code: String,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+diff --git b/src/db/entity/generated/user_topic.rs a/src/db/entity/generated/user_topic.rs
+index 1ac9a97..1fa032a 100644
+--- a/src/db/entity/generated/user_topic.rs
++++ b/src/db/entity/generated/user_topic.rs
+@@ -3,15 +3,17 @@
+ use sea_orm::entity::prelude::*;
+ use serde::{Deserialize, Serialize};
+
++use crate::db::custom_type::Id;
++
+ #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+ #[sea_orm(table_name = "user_topic")]
+ pub struct Model {
+     #[sea_orm(primary_key, auto_increment = false, column_type = "Binary(16)")]
+-    pub id: Vec<u8>,
+-    #[sea_orm(column_type = "Binary(16)")]
+-    pub topic_id: Vec<u8>,
++    pub id: Id,
++    #[sea_orm(column_type = "Binary(16)")]
++    pub topic_id: Id,
+     #[sea_orm(column_type = "Binary(16)")]
+-    pub user_id: Vec<u8>,
++    pub user_id: Id,
+     pub created_at: DateTimeUtc,
+     pub updated_at: DateTimeUtc,
+ }

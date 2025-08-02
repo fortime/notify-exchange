@@ -1,0 +1,11 @@
+server {
+    listen 80 default_server;
+
+    root /var/www/html/web;
+    index index.html;
+
+    location NE_BASE_PATH {
+        alias /var/www/html/web/;
+        try_files $uri $uri/ /index.html;
+    }
+}
