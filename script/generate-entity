@@ -1,0 +1,11 @@
+#! /usr/bin/env bash
+
+cd "$(dirname $0)/.."
+
+sea-orm-cli generate entity --with-serde both -o src/db/entity/generated
+
+mv src/db/entity/generated/mod.rs src/db/entity/generated.rs
+
+patch -p1 < misc/entity.diff
+
+cat /dev/null > src/db/entity/generated/prelude.rs

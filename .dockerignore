@@ -1,0 +1,19 @@
+# Project
+build
+rule
+.env*
+
+# CI
+.github
+
+# Git
+.git
+.gitignore
+
+# Rust
+target/
+
+# Web
+web/dist
+web/node_modules
+web/.env*
