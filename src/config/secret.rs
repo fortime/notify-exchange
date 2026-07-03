@@ -245,7 +245,7 @@ mod tests {
         assert!(key == Key::AesGcm(Bytes::copy_from_slice(b"123456")));
 
         // encrypted
-        let s = "2:MAIN:2:bm9uY2U9MTIz:bm90IGVuY3J5cHRlZA==";
+        let s = "2:MAIN:2:bm9uY2U9MTIz:bm90IGVuY3J5cHRlZA=="; // spellchecker:disable-line
         let encrypted_key = s.parse::<EncryptedKey>()?;
 
         assert!(s == encrypted_key.to_string());
