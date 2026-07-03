@@ -50,7 +50,7 @@ tempfile = "3.20.0"
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "tracing", "macros", "time", "signal"] }
 tokio-util = "0.7.16"
 tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["cors", "trace"] }
+tower-http = { version = "0.7.0", features = ["cors", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 uuid = { version = "1.17.0", default-features = false, features = ["v7", "serde"] }
