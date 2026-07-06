@@ -93,7 +93,6 @@
 
         <div
           v-if="setupComplete"
-          class="text-center"
         >
           <div v-if="selectedProviderId === 1">
             <!-- Telegram -->
@@ -103,23 +102,31 @@
             <p class="lead">
               Your system is almost set up. To complete the process, please send the following registration token to your Telegram bot:
             </p>
+            <strong>Your Registration Token:</strong>
             <BAlert
               show
               variant="success"
-              class="my-4"
+              body-class="d-flex align-items-center container-lg"
             >
-              <h4 class="alert-heading">
-                Your Registration Token
-              </h4>
-              <p class="display-6">
+              <div class="text-truncate">
                 {{ setupResult.token }}
-              </p>
+              </div>
+              <div class="ms-auto">
+                <BButton
+                  size="sm"
+                  variant="outline-secondary"
+                  @click="copyToClipboard(setupResult.token, 'setup-token')"
+                >
+                  <i class="bi bi-clipboard" />
+                </BButton>
+                <span v-if="copied === `setup-token`">Copied!</span>
+              </div>
             </BAlert>
             <p>After sending the token, your bot will be connected to the system. You can then log in to start using the service.</p>
             <BButton
               variant="success"
               size="lg"
-              @click="$router.push('/')"
+              @click="$router.push({ name: 'Home' })"
             >
               Go to Homepage
             </BButton>
@@ -133,7 +140,7 @@
             <BButton
               variant="success"
               size="lg"
-              @click="$router.push('/')"
+              @click="$router.push({ name: 'Home' })"
             >
               Go to Homepage
             </BButton>
@@ -145,8 +152,6 @@
 </template>
 
 <script>
-import apiClient from '../service/api';
-import { TransportServiceType } from '../service/enum';
 import {
   BRow,
   BCol,
@@ -158,6 +163,8 @@ import {
   BButton,
   BAlert,
 } from 'bootstrap-vue-next'
+import apiClient from '../service/api'
+import { TransportServiceType } from '../service/enum'
 
 export default {
   name: 'AppSetup',
@@ -183,6 +190,7 @@ export default {
       providerData: {},
       setupComplete: false,
       setupResult: null,
+      copied: null
     };
   },
   computed: {
@@ -206,62 +214,69 @@ export default {
       this.providerData = {};
     }
   },
-      async created() {
-          try {
-              const providersResponse = await apiClient.get('/v1/admin/setup/transport-service-type');
-              this.serviceProviders = providersResponse.data.data.map(id => ({
-                  id,
-                  name: TransportServiceType[id]?.name,
-                  fields: this.getProviderFields(id),
-              }));
-          } catch (e) {
-              console.error('Error fetching service providers:', e);
-              this.$toast.error('Error fetching service providers: ' + (e.response?.data?.message || e.message));
-          }
-      },
-      methods: {
-          getProviderFields(id) {
-              if (id === 1) { // Telegram
-                  return [
-                      { name: 'name', label: 'Service Name', type: 'text', required: true },
-                      { name: 'token', label: 'Bot Token', type: 'password', required: true },
-                      { name: 'description', label: 'Description', type: 'text', required: false },
-                  ];
-              }
-              return [];
-          },
-          async submitSetup() {
-              if (!this.selectedProviderId) {
-                  this.$toast.error('Please select a service provider.');
-                  return;
-              }
-
-              let url = '';
-              let payload = {};
-
-              if (this.selectedProviderId === 1) { // Telegram
-                  url = '/v1/admin/setup/telegram';
-                  payload = {
-                      admin: this.adminUser,
-                      token: this.providerData.token,
-                      name: this.providerData.name,
-                      description: this.providerData.description,
-                  };
-              } else {
-                  this.$toast.error('This provider type is not supported yet.');
-                  return;
-              }
-
-              try {
-                  const response = await apiClient.post(url, payload);
-                  this.setupResult = response.data.data;
-                  this.setupComplete = true;
-              } catch (error) {
-                  console.error('Error submitting setup:', error);
-                  this.$toast.error('Failed to submit setup: ' + (error.response?.data?.message || error.message));
-              }
-          }
+  async created() {
+    try {
+      const providersResponse = await apiClient.get('/v1/admin/setup/transport-service-type');
+      this.serviceProviders = providersResponse.data.data.map(id => ({
+        id,
+        name: TransportServiceType[id]?.name,
+        fields: this.getProviderFields(id),
+      }));
+    } catch (e) {
+      console.error('Error fetching service providers:', e);
+      this.$toast.error('Error fetching service providers: ' + (e.response?.data?.message || e.message));
+    }
+  },
+  methods: {
+    getProviderFields(id) {
+      if (id === 1) { // Telegram
+        return [
+          { name: 'name', label: 'Service Name', type: 'text', required: true },
+          { name: 'token', label: 'Bot Token', type: 'password', required: true },
+          { name: 'description', label: 'Description', type: 'text', required: false },
+        ];
+      }
+      return [];
+    },
+    async submitSetup() {
+      if (!this.selectedProviderId) {
+        this.$toast.error('Please select a service provider.');
+        return;
       }
 
+      let url = '';
+      let payload = {};
+
+      if (this.selectedProviderId === 1) { // Telegram
+        url = '/v1/admin/setup/telegram';
+        payload = {
+          admin: this.adminUser,
+          token: this.providerData.token,
+          name: this.providerData.name,
+          description: this.providerData.description,
+        };
+      } else {
+        this.$toast.error('This provider type is not supported yet.');
+        return;
+      }
+
+      try {
+        const response = await apiClient.post(url, payload);
+        this.setupResult = response.data.data;
+        this.setupComplete = true;
+      } catch (error) {
+        console.error('Error submitting setup:', error);
+        this.$toast.error('Failed to submit setup: ' + (error.response?.data?.message || error.message));
+      }
+    },
+    copyToClipboard(text, type) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.copied = type
+        setTimeout(() => {
+          this.copied = null
+        }, 2000)
+      })
+    }
+  }
 };
 </script>
