@@ -1,19 +1,83 @@
-server {
-    listen 80 default_server;
+worker_processes auto;
+pid /home/app/run/nginx.pid;
+error_log /dev/stderr warn;
+include /etc/nginx/modules-enabled/*.conf;
 
-    root /var/www/html/web;
-    index index.html;
+events {
+	worker_connections 768;
+	# multi_accept on;
+}
 
-    location NE_BASE_PATH {
-        alias /var/www/html/web/;
-        try_files $uri $uri/ /index.html;
-    }
+http {
 
-    location NE_API_BASE_PATH {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+	##
+	# Basic Settings
+	##
+
+	sendfile on;
+	tcp_nopush on;
+	types_hash_max_size 2048;
+	# server_tokens off;
+
+	# server_names_hash_bucket_size 64;
+	# server_name_in_redirect off;
+
+	include /etc/nginx/mime.types;
+	default_type application/octet-stream;
+
+	##
+	# SSL Settings
+	##
+
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+	ssl_prefer_server_ciphers on;
+
+	##
+	# Logging Settings
+	##
+
+    access_log /dev/stdout;
+
+	##
+	# Gzip Settings
+	##
+
+	gzip on;
+
+	# gzip_vary on;
+	# gzip_proxied any;
+	# gzip_comp_level 6;
+	# gzip_buffers 16 8k;
+	# gzip_http_version 1.1;
+	# gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # Relocate all internal cache and temp paths to user-writable folders
+    client_body_temp_path /home/app/run/nginx/body;
+    proxy_temp_path       /home/app/run/nginx/proxy;
+    fastcgi_temp_path     /home/app/run/nginx/fastcgi;
+    uwsgi_temp_path       /home/app/run/nginx/uwsgi;
+    scgi_temp_path        /home/app/run/nginx/scgi;
+
+	##
+	# Virtual Host Configs
+	##
+    server {
+        listen 3000 default_server;
+
+        root /var/www/html/web;
+        index index.html;
+
+        location NE_BASE_PATH {
+            alias /var/www/html/web/;
+            try_files $uri $uri/ /index.html;
+        }
+
+        location NE_API_BASE_PATH {
+            proxy_pass http://127.0.0.1:8080/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
     }
 }

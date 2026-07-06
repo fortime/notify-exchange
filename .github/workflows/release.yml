@@ -52,11 +52,12 @@ jobs:
   release:
     name: Create github release
     runs-on: ubuntu-latest
+    needs: [build-docker]
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@master
       - name: Get the release version from the tag
         if: env.VERSION == ''
         run: echo "VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
@@ -66,7 +67,8 @@ jobs:
       - name: Check that tag version and Cargo.toml version are the same
         shell: bash
         run: |
-          if ! grep -q "version = \"$VERSION\"" Cargo.toml; then
+          package_info=$(grep -A 1 'name = "notify-exchange"' Cargo.toml)
+          if ! echo $package_info | grep -q "^version = \"${VERSION%-*}\"" Cargo.toml; then
             echo "version does not match Cargo.toml" >&2
             exit 1
           fi

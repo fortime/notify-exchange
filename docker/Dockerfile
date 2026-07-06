@@ -13,6 +13,7 @@ RUN npm install
 COPY ./web/public ./public
 COPY ./web/src ./src
 COPY ./web/vue.config.js ./
+COPY ./web/.eslintrc.js ./
 
 # Remove possible .env* files and generate path placeholder
 RUN rm -f ".env"* \
@@ -23,7 +24,7 @@ RUN rm -f ".env"* \
 # Build app for production with minification
 RUN npm run build
 
-FROM docker.io/library/rust:1.87.0 AS builder-backend
+FROM docker.io/library/rust:1.94.0 AS builder-backend
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
@@ -36,54 +37,83 @@ RUN mkdir -p src/bin/ \
         && echo "fn main() {}" > src/bin/server.rs \
         && echo "fn main() {}" > src/bin/util.rs \
         && mkdir src/bin/http_proxy \
-        && echo "fn main() {}" > src/bin/http_proxy/main.rs
+        && echo "fn main() {}" > src/bin/http_proxy/main.rs \
+        && mkdir -p migration/src \
+        && touch migration/src/lib.rs \
+        && echo "fn main() {}" > migration/src/main.rs
+
+COPY ./migration/Cargo.toml ./migration/Cargo.lock ./migration/
 
 # Build the dependencies without the actual source code to cache dependencies separately
-RUN cargo build --release
+RUN cargo build --release \
+        && cd migration \
+        && cargo build --release
 
 # Now copy the source code
 COPY ./src ./src
+COPY ./migration/src ./migration/src
 
 # Build your application
 RUN touch -a -m src/bin/server.rs \
         && touch -a -m src/bin/util.rs \
         && touch -a -m src/bin/http_proxy/main.rs \
+        && cargo build --release \
+        && cd migration \
+        && touch -a -m src/main.rs \
+        && touch -a -m src/lib.rs \
         && cargo build --release
 
 # Start a new stage to create a smaller image without unnecessary build dependencies
 FROM debian:bookworm-slim
 
-# Set the working directory
-WORKDIR /usr/src/app
-
-RUN mkdir bin
-
 RUN apt-get update \
         && apt-get install -y --no-install-recommends libssl3 openssl ca-certificates nginx supervisor \
         && rm -rf /var/lib/apt/lists/*
 
-# Copy the built binary from the previous stage
-COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-server ./bin
-COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-http-proxy ./bin
-COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-util ./bin
-COPY --from=builder-frontend /usr/src/app/dist ./web
-COPY --from=builder-frontend /usr/src/app/.env ./env_web_build
+# Create a non-root user for security
+RUN useradd -m app
 
-# Create /var/www/html and link /usr/src/app/web to /var/www/html/web
-RUN mkdir -p /var/www/html && ln -s /usr/src/app/web /var/www/html/web
+# Copy the built binary from the previous stage
+COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-server /usr/local/bin/notify-exchange-server
+COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-http-proxy /usr/local/bin/notify-exchange-http-proxy
+COPY --from=builder-backend /usr/src/app/target/release/notify-exchange-util /usr/local/bin/notify-exchange-util
+COPY --from=builder-backend /usr/src/app/migration/target/release/migration /usr/local/bin/migration
 
 # Copy nginx and supervisord configurations
-COPY ./docker/entrypoint.sh /usr/src/app/bin/entrypoint.sh
-COPY ./docker/nginx-all.conf.template /etc/nginx/conf.d/nginx-all.conf.template
-COPY ./docker/nginx-frontend.conf.template /etc/nginx/conf.d/nginx-frontend.conf.template
-COPY ./docker/supervisord-all.conf /etc/supervisor/conf.d/supervisord-all.conf
-COPY ./docker/supervisord-frontend.conf /etc/supervisor/conf.d/supervisord-frontend.conf
+COPY ./docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-RUN chmod a+x /usr/src/app/bin/entrypoint.sh
+# Create /var/www/html and link /home/app/web to /var/www/html/web
+RUN mkdir -p /var/www/html \
+        && ln -s /home/app/web /var/www/html/web \
+        && chmod a+x /usr/local/bin/entrypoint.sh
 
-# Command to run the application
-ENTRYPOINT ["/usr/src/app/bin/entrypoint.sh"]
+COPY --from=builder-frontend /usr/src/app/dist /home/app/web
+RUN chown -R app:app /home/app/web
 
-EXPOSE 80
+USER app
+WORKDIR /home/app
+
+COPY --from=builder-frontend /usr/src/app/.env /home/app/env_web_build
+
+RUN mkdir -p /home/app/data \
+        && mkdir -p /home/app/conf/nginx \
+        && mkdir -p /home/app/conf/supervisord \
+        && mkdir -p /home/app/run/nginx
+
+COPY ./docker/nginx-all.conf.template /home/app/conf/nginx/nginx-all.conf.template
+COPY ./docker/nginx-frontend.conf.template /home/app/conf/nginx/nginx-frontend.conf.template
+COPY ./docker/supervisord-all.conf /home/app/conf/supervisord/supervisord-all.conf
+COPY ./docker/supervisord-frontend.conf /home/app/conf/supervisord/supervisord-frontend.conf
+
+EXPOSE 3000
+
 ENV NE_BASE_PATH "/"
 ENV NE_API_BASE_PATH "/api"
+ENV NOTIFY_EXCHANGE_DB_URL="sqlite:///home/app/data/ne.db"
+ENV NOTIFY_EXCHANGE_MSG_DB_URL="sqlite:///home/app/data/ne-msg.db"
+ENV NOTIFY_EXCHANGE_CACHE_DB_URL="sqlite:///home/app/data/ne-cache.db"
+ENV NOTIFY_EXCHANGE_REFRESHING_DISPATCHERS_AT=05:00:00
+ENV RUST_LOG=info
+
+# Command to run the application
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
