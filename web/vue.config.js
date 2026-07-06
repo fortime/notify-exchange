@@ -1,13 +1,13 @@
-const pathRewrite = {};
-pathRewrite['^' + process.env.VUE_APP_API_BASE_PATH] = '';
+const pathRewrite = {}
+pathRewrite['^' + process.env.VUE_APP_API_BASE_PATH] = ''
 
-const devServerProxy = {};
+const devServerProxy = {}
 devServerProxy['^' + process.env.VUE_APP_API_BASE_PATH] = {
   target: process.env.VUE_APP_DEV_SERVER_TARGET,
   pathRewrite: pathRewrite,
   changeOrigin: true,
   logLevel: 'debug'
-};
+}
 
 module.exports = {
   publicPath: process.env.VUE_APP_PUBLIC_PATH,
@@ -26,4 +26,4 @@ module.exports = {
       },
     }
   }
-};
+}

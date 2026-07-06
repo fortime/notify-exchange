@@ -445,7 +445,7 @@ const showRefreshModal = (secret) => {
 }
 
 const handleRefreshSecret = async () => {
-  const secret = secretToRefresh.value;
+  const secret = secretToRefresh.value
   if (secret) {
     try {
       const params = new URLSearchParams({
@@ -486,7 +486,7 @@ const showUpdatePubKeyModal = (secret) => {
 }
 
 const handleUpdatePubKey = async () => {
-  const secret = secretToUpdate.value;
+  const secret = secretToUpdate.value
   if (secret && isPubKeyFileForUpdateValid.value) {
     try {
       const formData = new FormData()
@@ -544,7 +544,7 @@ const showDeleteModal = (secret) => {
 }
 
 const handleDeleteSecret = async () => {
-  const secret = secretToDelete.value;
+  const secret = secretToDelete.value
   if (secret) {
     try {
       const params = new URLSearchParams({

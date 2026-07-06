@@ -37,7 +37,7 @@ const props = defineProps({
 
 const transportServiceTypeCode = computed(() => {
   if (typeof props.transportServiceType === 'undefined') {
-      return '';
+      return ''
   }
   return TransportServiceType[props.transportServiceType]?.code
 })

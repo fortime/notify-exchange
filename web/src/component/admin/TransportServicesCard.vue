@@ -323,7 +323,7 @@ import { BCard, BTable, BButton, BModal, BForm, BFormGroup, BFormInput, BFormSel
 import apiClient from '../../service/api'
 import { useToast } from 'vue-toast-notification'
 import AppPagination from '../AppPagination.vue'
-import { TransportServiceType } from '../../service/enum';
+import { TransportServiceType } from '../../service/enum'
 
 const $toast = useToast()
 const paginationRef = ref(null)

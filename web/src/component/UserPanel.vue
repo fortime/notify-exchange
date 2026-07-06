@@ -29,17 +29,17 @@ async function logout() {
     $toast.error('Logout failed: ' + (error.response?.data?.message || error.message))
     // We clear state and redirect anyway
   } finally {
-    const logoutRoute = state.logoutRouteName;
+    const logoutRoute = state.logoutRouteName
     // Clear local state
     state.isLoggedIn = false
     state.user = null
-    localStorage.removeItem('csrfToken');
-    state.logoutRouteName = null;
+    localStorage.removeItem('csrfToken')
+    state.logoutRouteName = null
     // Redirect to login
     if (logoutRoute) {
-      router.push({ name: logoutRoute });
+      router.push({ name: logoutRoute })
     } else {
-      router.push('/login');
+      router.push('/login')
     }
   }
 }

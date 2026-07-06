@@ -125,11 +125,11 @@ const fields = computed(() => {
     { key: 'committed_offset', label: 'Committed Offset', tdClass: 'align-middle' },
     { key: 'latest_offset', label: 'Latest Offset', tdClass: 'align-middle' },
     { key: 'created_at', label: 'Subscribed At', tdClass: 'align-middle' }
-  ];
+  ]
   if (!props.isAdmin) {
-    baseFields.push({ key: 'actions', label: 'Actions', tdClass: 'align-middle' });
+    baseFields.push({ key: 'actions', label: 'Actions', tdClass: 'align-middle' })
   }
-  return baseFields;
+  return baseFields
 })
 
 const handleFetched = (items) => {
@@ -156,7 +156,7 @@ const showDeleteModal = (subscription) => {
 }
 
 const handleDeleteSubscription = async () => {
-  const subscription = subscriptionToDelete.value;
+  const subscription = subscriptionToDelete.value
   if (subscription) {
     try {
       await apiClient.delete(`/v1/endpoint/${props.endpointId}/subscription/${subscription.id}`)

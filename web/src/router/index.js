@@ -65,9 +65,9 @@ const routes = [
     component: AdminLayout,
     beforeEnter: (to, from, next) => {
       if (state.isLoggedIn && state.user?.is_admin) {
-        next();
+        next()
       } else {
-        next({ name: 'Home' });
+        next({ name: 'Home' })
       }
     },
     children: [
@@ -108,7 +108,7 @@ router.beforeEach(async (to, from) => {
 
   // Define public routes that are always accessible and without fetching user info
   const publicPagesBefore = ['/logout/telegram']
-  console.log("from " + from.path + ", to " + to.path);
+  console.log("from " + from.path + ", to " + to.path)
   if (publicPagesBefore.includes(to.path)) {
     // Return before getting the user info.
     return true
@@ -124,10 +124,10 @@ router.beforeEach(async (to, from) => {
       if (!error.response || error.response.status !== 401) {
         console.error('Error fetching user status:', error)
       }
-      const logoutRoute = localStorage.getItem('logoutRouteName');
+      const logoutRoute = localStorage.getItem('logoutRouteName')
       state.user = null
       state.isLoggedIn = false
-      localStorage.removeItem('logoutRouteName');
+      localStorage.removeItem('logoutRouteName')
       if (logoutRoute) {
         return { name: logoutRoute }
       }
@@ -167,9 +167,9 @@ router.afterEach((to, from) => {
   // Keep track of navigation history in sessionStorage, excluding login pages
   if (from.name && from.name !== 'Login' && from.name !== 'LoginTelegram') {
     let history = JSON.parse(sessionStorage.getItem('navigationHistory') || '[]')
-    history.push({ name: from.name, params: from.params, query: from.query });
-    sessionStorage.setItem('navigationHistory', JSON.stringify(history));
+    history.push({ name: from.name, params: from.params, query: from.query })
+    sessionStorage.setItem('navigationHistory', JSON.stringify(history))
   }
-});
+})
 
 export default router

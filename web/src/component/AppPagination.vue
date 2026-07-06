@@ -64,7 +64,7 @@ const isLoading = ref(false)
 
 async function fetchData() {
   if (props.url === "") {
-    return;
+    return
   }
   isLoading.value = true
   try {

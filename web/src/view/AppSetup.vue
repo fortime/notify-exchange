@@ -191,40 +191,40 @@ export default {
       setupComplete: false,
       setupResult: null,
       copied: null
-    };
+    }
   },
   computed: {
     providerOptions() {
-      const options = [{ value: null, text: '-- Please select a provider --', disabled: true }];
+      const options = [{ value: null, text: '-- Please select a provider --', disabled: true }]
       this.serviceProviders.forEach(p => {
-        options.push({ value: p.id, text: p.name });
-      });
-      return options;
+        options.push({ value: p.id, text: p.name })
+      })
+      return options
     },
     selectedProvider() {
       if (!this.selectedProviderId) {
-        return null;
+        return null
       }
-      return this.serviceProviders.find(p => p.id === this.selectedProviderId);
+      return this.serviceProviders.find(p => p.id === this.selectedProviderId)
     }
   },
   watch: {
     selectedProviderId() {
       // Reset provider data when selection changes
-      this.providerData = {};
+      this.providerData = {}
     }
   },
   async created() {
     try {
-      const providersResponse = await apiClient.get('/v1/admin/setup/transport-service-type');
+      const providersResponse = await apiClient.get('/v1/admin/setup/transport-service-type')
       this.serviceProviders = providersResponse.data.data.map(id => ({
         id,
         name: TransportServiceType[id]?.name,
         fields: this.getProviderFields(id),
-      }));
+      }))
     } catch (e) {
-      console.error('Error fetching service providers:', e);
-      this.$toast.error('Error fetching service providers: ' + (e.response?.data?.message || e.message));
+      console.error('Error fetching service providers:', e)
+      this.$toast.error('Error fetching service providers: ' + (e.response?.data?.message || e.message))
     }
   },
   methods: {
@@ -234,39 +234,39 @@ export default {
           { name: 'name', label: 'Service Name', type: 'text', required: true },
           { name: 'token', label: 'Bot Token', type: 'password', required: true },
           { name: 'description', label: 'Description', type: 'text', required: false },
-        ];
+        ]
       }
-      return [];
+      return []
     },
     async submitSetup() {
       if (!this.selectedProviderId) {
-        this.$toast.error('Please select a service provider.');
-        return;
+        this.$toast.error('Please select a service provider.')
+        return
       }
 
-      let url = '';
-      let payload = {};
+      let url = ''
+      let payload = {}
 
       if (this.selectedProviderId === 1) { // Telegram
-        url = '/v1/admin/setup/telegram';
+        url = '/v1/admin/setup/telegram'
         payload = {
           admin: this.adminUser,
           token: this.providerData.token,
           name: this.providerData.name,
           description: this.providerData.description,
-        };
+        }
       } else {
-        this.$toast.error('This provider type is not supported yet.');
-        return;
+        this.$toast.error('This provider type is not supported yet.')
+        return
       }
 
       try {
-        const response = await apiClient.post(url, payload);
-        this.setupResult = response.data.data;
-        this.setupComplete = true;
+        const response = await apiClient.post(url, payload)
+        this.setupResult = response.data.data
+        this.setupComplete = true
       } catch (error) {
-        console.error('Error submitting setup:', error);
-        this.$toast.error('Failed to submit setup: ' + (error.response?.data?.message || error.message));
+        console.error('Error submitting setup:', error)
+        this.$toast.error('Failed to submit setup: ' + (error.response?.data?.message || error.message))
       }
     },
     copyToClipboard(text, type) {
@@ -278,5 +278,5 @@ export default {
       })
     }
   }
-};
+}
 </script>

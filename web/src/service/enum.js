@@ -7,7 +7,7 @@ export const TransportServiceType = Object.freeze({
       'name': 'Http',
       'code': 'HTTP',
   }),
-});
+})
 
 export const TopicPermissionType = Object.freeze({
   'READ': Object.freeze({
@@ -40,4 +40,4 @@ export const TopicPermissionType = Object.freeze({
       code: 13,
       value: 'ManageReadInPublic',
   }),
-});
+})

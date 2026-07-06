@@ -126,7 +126,7 @@ const showDeleteModal = (endpoint) => {
 }
 
 const handleDeleteEndpoint = async () => {
-  const endpoint = endpointToDelete.value;
+  const endpoint = endpointToDelete.value
   if (endpoint) {
     try {
       await apiClient.delete(`/v1/endpoint/${endpoint.id}`)

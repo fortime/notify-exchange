@@ -146,7 +146,7 @@ async function fetchMessages() {
 
 const observer = new IntersectionObserver(
   entries => {
-    isVisible.value = entries[0].isIntersecting;
+    isVisible.value = entries[0].isIntersecting
     if (entries[0].isIntersecting) {
       fetchMessages()
     }

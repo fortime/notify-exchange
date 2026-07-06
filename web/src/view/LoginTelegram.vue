@@ -17,8 +17,8 @@
 </template>
 
 <script>
-import api from "../service/api";
-import { state } from '../service/state';
+import api from "../service/api"
+import { state } from '../service/state'
 import {
   BRow,
   BCol,
@@ -38,58 +38,58 @@ export default {
   data() {
     return {
       message: "Logging in...",
-    };
+    }
   },
   mounted() {
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-web-app.js";
-    script.onload = () => this.handleSdkLoad();
+    const script = document.createElement("script")
+    script.src = "https://telegram.org/js/telegram-web-app.js"
+    script.onload = () => this.handleSdkLoad()
     script.onerror = () => {
-      this.message = "Failed to load Telegram SDK.";
-    };
-    document.head.appendChild(script);
+      this.message = "Failed to load Telegram SDK."
+    }
+    document.head.appendChild(script)
   },
   methods: {
     async handleSdkLoad() {
       try {
-        const tg = window.Telegram.WebApp;
-        tg.ready();
+        const tg = window.Telegram.WebApp
+        tg.ready()
 
         if (state.user) {
-            this.$router.push(this.ru);
-            return;
+            this.$router.push(this.ru)
+            return
         }
 
-        const params = new URLSearchParams(window.location.search);
-        const eid = params.get("eid");
-        const ru = params.get("ru");
+        const params = new URLSearchParams(window.location.search)
+        const eid = params.get("eid")
+        const ru = params.get("ru")
 
         if (!tg.initData || !eid) {
-          this.message = "Invalid login parameters. Missing initData or eid.";
-          return;
+          this.message = "Invalid login parameters. Missing initData or eid."
+          return
         }
 
         const response = await api.post("/v1/user/session/telegram", {
           init_data: tg.initData,
           eid: eid,
-        });
+        })
 
         // Save the CSRF token to global state
         if (response.data.data.csrf_token) {
-          localStorage.setItem('csrfToken', response.data.data.csrf_token);
-          localStorage.setItem('logoutRouteName', 'LogoutTelegram');
-          state.isLoggedIn = true;
+          localStorage.setItem('csrfToken', response.data.data.csrf_token)
+          localStorage.setItem('logoutRouteName', 'LogoutTelegram')
+          state.isLoggedIn = true
         }
 
-        this.$router.push(ru || "/");
+        this.$router.push(ru || "/")
       } catch (error) {
-        console.error("Login failed:", error);
-        this.message = "Login failed. Please try again later.";
+        console.error("Login failed:", error)
+        this.message = "Login failed. Please try again later."
         if (error.response && error.response.data && error.response.data.message) {
-            this.message = `Login failed: ${error.response.data.message}`;
+            this.message = `Login failed: ${error.response.data.message}`
         }
       }
     },
   },
-};
+}
 </script>
