@@ -4,7 +4,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use http::HttpDispatcherClient;
 use sea_orm::{
-    ActiveModelTrait as _, ColumnTrait as _, ConnectionTrait, DatabaseTransaction,
+    ActiveModelTrait as _, ActiveValue, ColumnTrait as _, ConnectionTrait, DatabaseTransaction,
     EntityTrait as _, IntoActiveModel as _, Order, PaginatorTrait as _, QueryFilter as _,
     QueryOrder as _, QuerySelect as _,
     prelude::{DateTimeUtc, Expr},
@@ -130,11 +130,30 @@ impl<'a> TransportServiceService<'a> {
         transport_service_id: Id,
         enabled: bool,
     ) -> NotifyExchangeResult<()> {
-        TransportServiceDsl::update_many()
-            .filter(TransportServiceColumn::Id.eq(transport_service_id))
-            .col_expr(TransportServiceColumn::Enabled, Expr::value(enabled))
-            .exec(conn)
-            .await?;
+        let Some(transport_service) = TransportServiceDsl::find_by_id(transport_service_id)
+            .one(conn)
+            .await?
+        else {
+            return Ok(());
+        };
+
+        if enabled {
+            // Start transport service
+            self.context
+                .transport_service_operator()
+                .start(conn, &transport_service)
+                .await?;
+        } else {
+            // Stop transport service
+            self.context
+                .transport_service_operator()
+                .stop(conn, &transport_service)
+                .await?;
+        }
+
+        let mut transport_service = transport_service.into_active_model();
+        transport_service.enabled = ActiveValue::Set(enabled);
+        transport_service.save(conn).await?;
 
         // Rebuild dispatcher client
         self.context

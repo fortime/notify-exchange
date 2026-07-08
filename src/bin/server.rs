@@ -30,7 +30,7 @@ fn graceful_shutdown(
         tracing::info!("Waiting for signals: {:?}", signals);
         signals.await;
         if let Err(e) = clean(context).await {
-            tracing::error!("Error occurred in cleaning: {e:?}")
+            tracing::error!("Error occurred in cleaning: {e:#?}")
         }
     })
 }

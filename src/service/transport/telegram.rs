@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
 
@@ -15,8 +16,8 @@ use teloxide::{
     prelude::Requester,
     requests::HasPayload as _,
     types::{
-        Chat, ChatId, Message as TeloxideMessage, ReplyMarkup, UpdateKind, User as TeloxideUser,
-        UserId,
+        Chat, ChatId, Message as TeloxideMessage, ReplyMarkup, Update, UpdateKind,
+        User as TeloxideUser, UserId,
     },
 };
 use tokio::time;
@@ -62,6 +63,7 @@ struct TelegramEndpointOptions {
 
 #[derive(Serialize, Deserialize)]
 struct WebhookTokenCache {
+    id: u64,
     token: String,
 }
 
@@ -371,15 +373,22 @@ impl<'a> TelegramService<'a> {
         conn: &Conn,
         transport_service: &TransportService,
     ) -> NotifyExchangeResult<()> {
+        static START_ID: AtomicU64 = AtomicU64::new(0);
+
         let token = self.find_token_string(conn, transport_service.id).await?;
         let bot = init_bot(&token).await?;
         let webhook_url = self.gen_webhook_url(transport_service.id);
+        let webhook_url: Url = webhook_url
+            .parse()
+            .whatever(format!("Invalid telegram webhook url: {webhook_url}"))?;
         let webhook_token = Uuid::new_v4().to_string();
+        let start_id = START_ID.fetch_add(1, Ordering::SeqCst);
         self.context
             .cache_manager()
             .set_named_token(
                 &transport_service.id.to_string(),
                 &WebhookTokenCache {
+                    id: start_id,
                     token: webhook_token.clone(),
                 },
                 None,
@@ -390,13 +399,121 @@ impl<'a> TelegramService<'a> {
             webhook_url,
             transport_service.id
         );
-        bot.set_webhook(
-            webhook_url
-                .parse()
-                .whatever(format!("Invalid telegram webhook url: {webhook_url}"))?,
-        )
-        .secret_token(webhook_token)
-        .await?;
+        if webhook_url.scheme() == "https" {
+            // telegram webhook url must be https
+            bot.set_webhook(webhook_url)
+                .secret_token(webhook_token)
+                .await?;
+        } else {
+            let context = self.context.clone();
+            let transport_service = transport_service.clone();
+            tokio::spawn(async move {
+                let transport_service_id = transport_service.id.to_string();
+                let telegram_service = TelegramService::new(&context);
+                tracing::info!(
+                    "Start transport service[{}/{}] in poll mode",
+                    transport_service.name,
+                    transport_service_id
+                );
+
+                let mut offset = None;
+                loop {
+                    let updates = match bot
+                        .get_updates()
+                        .with_payload_mut(|payload| {
+                            payload.timeout = Some(10);
+                            payload.offset = offset;
+                        })
+                        .await
+                    {
+                        Ok(updates) => updates,
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to poll the telegram message of transport service[{}/{}], sleep a moment: {e:#?}",
+                                transport_service.name,
+                                transport_service_id
+                            );
+                            time::sleep(Duration::from_secs(10)).await;
+                            continue;
+                        }
+                    };
+
+                    // Check if id
+                    match context
+                        .cache_manager()
+                        .get_token::<WebhookTokenCache>(&transport_service_id)
+                        .await
+                    {
+                        Ok(Some(token)) => {
+                            if token.id != start_id {
+                                tracing::warn!(
+                                    "The start id of transport service[{}/{}] has changed",
+                                    transport_service.name,
+                                    transport_service_id
+                                );
+                                break;
+                            }
+                        }
+                        Ok(None) => break,
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to get the token cache of transport service[{}/{}], sleep a moment: {e:#?}",
+                                transport_service.name,
+                                transport_service_id
+                            );
+                            time::sleep(Duration::from_secs(60)).await;
+                            continue;
+                        }
+                    }
+
+                    for update in updates {
+                        offset = Some(update.id.as_offset());
+                        let chat_id = update.chat_id();
+                        if let Err(e) = telegram_service
+                            .handle_update(&transport_service, &bot, update)
+                            .await
+                        {
+                            let res = match e {
+                                NotifyExchangeError::InvalidRequest { message } => {
+                                    tracing::error!("Invalid request: {message}");
+                                    if let Some(chat_id) = chat_id {
+                                        bot.send_message(chat_id, message).await.map(|_| ())
+                                    } else {
+                                        Ok(())
+                                    }
+                                }
+                                NotifyExchangeError::NotFound { message } => {
+                                    tracing::error!("Not found: {message}");
+                                    if let Some(chat_id) = chat_id {
+                                        bot.send_message(chat_id, message).await.map(|_| ())
+                                    } else {
+                                        Ok(())
+                                    }
+                                }
+                                _ => {
+                                    tracing::error!("Error in handling update: {e:?}");
+                                    if let Some(chat_id) = chat_id {
+                                        bot.send_message(chat_id, "Oops, something went wrong")
+                                            .await
+                                            .map(|_| ())
+                                    } else {
+                                        Ok(())
+                                    }
+                                }
+                            };
+                            if let Err(e) = res {
+                                tracing::error!("Error to send response: {e:?}");
+                            }
+                        }
+                    }
+                }
+                tracing::warn!(
+                    "Exit the poll loop of transport service[{}/{}]",
+                    transport_service.name,
+                    transport_service_id
+                );
+            });
+        }
         Ok(())
     }
 
@@ -408,6 +525,10 @@ impl<'a> TelegramService<'a> {
         let token = self.find_token_string(conn, transport_service.id).await?;
         let bot = new_bot(&token)?;
         bot.delete_webhook().await?;
+        self.context
+            .cache_manager()
+            .delete_token::<WebhookTokenCache>(&transport_service.id.to_string())
+            .await?;
         Ok(())
     }
 
@@ -442,7 +563,7 @@ impl<'a> TelegramService<'a> {
         ))
     }
 
-    pub async fn find_user_and_roles<Conn: ConnectionTrait>(
+    async fn find_user_and_roles<Conn: ConnectionTrait>(
         &self,
         conn: &Conn,
         telegram_user_id: UserId,
@@ -603,7 +724,7 @@ impl<'a> TelegramService<'a> {
         err,
         ret
     )]
-    pub async fn dispatch_command(
+    async fn dispatch_command(
         &self,
         chat_ctx: ChatContext<'_>,
         command: &str,
@@ -614,6 +735,95 @@ impl<'a> TelegramService<'a> {
             return Err(error::invalid_request("Unknown command"));
         };
         command.execute(self.context, self, &chat_ctx, params).await
+    }
+
+    #[tracing::instrument(
+        level = "info",
+        skip(self, transport_service, bot, update),
+        fields(transport_service_id = %transport_service.id),
+        err,
+        ret
+    )]
+    /// Handles the update received from Telegram.
+    pub async fn handle_update(
+        &self,
+        transport_service: &TransportService,
+        bot: &Bot,
+        update: Update,
+    ) -> NotifyExchangeResult<()> {
+        fn invalid_request() -> NotifyExchangeError {
+            error::invalid_request("Sorry, I don't know what you mean.")
+        }
+
+        match update.kind {
+            // We only handle message, edited message will be ignored
+            UpdateKind::Message(message) => {
+                let is_group = message.chat.is_group();
+                if !message.chat.is_private() && !is_group {
+                    tracing::debug!("Skip message not from private chat and group chat");
+                    return Ok(());
+                }
+
+                if message.via_bot.is_some() {
+                    tracing::debug!("Skip message from bot");
+                    return Ok(());
+                }
+
+                let Some(sender) = message.from.clone() else {
+                    tracing::warn!("There is no sender of the message: {message:?}");
+                    return Ok(());
+                };
+
+                let (user_and_endpoint, is_admin) = if let Some((user_and_endpoint, roles)) = self
+                    .find_user_and_roles(self.context.db(), sender.id, transport_service.id)
+                    .await?
+                {
+                    if !user_and_endpoint.0.enabled {
+                        return Err(error::invalid_request("Your account is disabled"));
+                    }
+                    (Some(user_and_endpoint), roles.iter().any(Role::is_admin))
+                } else {
+                    (None, false)
+                };
+
+                // Get the text from the message, and use the first word as command
+                if let Some(text) = message.text() {
+                    let mut it = text.splitn(2, ' ');
+                    let Some(command) = it.next() else {
+                        tracing::info!("Empty message");
+                        return Err(invalid_request());
+                    };
+                    let params = it.next().unwrap_or_default();
+
+                    return self
+                        .dispatch_command(
+                            ChatContext {
+                                bot,
+                                sender: &sender,
+                                chat: &message.chat,
+                                transport_service,
+                                user_and_endpoint: user_and_endpoint.as_ref(),
+                                is_admin,
+                            },
+                            command,
+                            params,
+                        )
+                        .await;
+                } else {
+                    tracing::debug!("Skip message: {message:?}");
+                }
+            }
+            // Callback from inline keyboard
+            UpdateKind::CallbackQuery(_callback_query) => {
+                return Err(error::invalid_request(
+                    "Inline keyboard isn't supported yet",
+                ));
+            }
+            _ => {
+                tracing::debug!("Skip update: {update:?}");
+            }
+        }
+        Err(invalid_request())
     }
 }
 
@@ -831,7 +1041,10 @@ pub async fn wait_and_finish_setup(
     }
     let text = match res {
         Ok(_) => "Telegram service registered",
-        Err(_) => "Error happened",
+        Err(e) => {
+            tracing::error!("Unable to create transport service: {e:#?}");
+            "Error happened"
+        }
     };
     if let Some(chat_id) = message.chat.chat_id() {
         bot.send_message(chat_id, text).await?;

@@ -1,19 +1,15 @@
 use axum::{Extension, Router, extract::Path, http::HeaderMap, routing};
 use teloxide::{
-    Bot,
     dispatching::dialogue::GetChatId as _,
     prelude::Requester,
     types::{Update, UpdateKind},
 };
 
 use crate::{
-    context::{Context, RequestContext},
-    db::{
-        custom_type::Id,
-        entity::{Role, TransportService},
-    },
+    context::RequestContext,
+    db::custom_type::Id,
     error::{self, NotifyExchangeError, NotifyExchangeResult},
-    service::transport::telegram::{self, ChatContext, TelegramService},
+    service::transport::telegram::{self, TelegramService},
 };
 
 const SECRET_TOKEN_HEADER: &str = "x-telegram-bot-api-secret-token";
@@ -70,9 +66,9 @@ async fn handle(
                 tracing::warn!("Maybe a new type of update: {input}");
             } else {
                 let chat_id = update.chat_id();
-                if let Err(e) =
-                    handle_update(context, &telegram_service, &transport_service, &bot, update)
-                        .await
+                if let Err(e) = telegram_service
+                    .handle_update(&transport_service, &bot, update)
+                    .await
                 {
                     match e {
                         NotifyExchangeError::InvalidRequest { message } => {
@@ -108,88 +104,4 @@ async fn handle(
     }
 
     Ok(())
-}
-
-/// Handles the update received from Telegram.
-async fn handle_update(
-    context: &Context,
-    telegram_service: &TelegramService<'_>,
-    transport_service: &TransportService,
-    bot: &Bot,
-    update: Update,
-) -> NotifyExchangeResult<()> {
-    fn invalid_request() -> NotifyExchangeError {
-        error::invalid_request("Sorry, I don't know what you mean.")
-    }
-
-    match update.kind {
-        // We only handle message, edited message will be ignored
-        UpdateKind::Message(message) => {
-            let is_group = message.chat.is_group();
-            if !message.chat.is_private() && !is_group {
-                tracing::debug!("Skip message not from private chat and group chat");
-                return Ok(());
-            }
-
-            if message.via_bot.is_some() {
-                tracing::debug!("Skip message from bot");
-                return Ok(());
-            }
-
-            let Some(sender) = message.from.clone() else {
-                tracing::warn!("There is no sender of the message: {message:?}");
-                return Ok(());
-            };
-
-            let (user_and_endpoint, is_admin) = if let Some((user_and_endpoint, roles)) =
-                telegram_service
-                    .find_user_and_roles(context.db(), sender.id, transport_service.id)
-                    .await?
-            {
-                if !user_and_endpoint.0.enabled {
-                    return Err(error::invalid_request("Your account is disabled"));
-                }
-                (Some(user_and_endpoint), roles.iter().any(Role::is_admin))
-            } else {
-                (None, false)
-            };
-
-            // Get the text from the message, and use the first word as command
-            if let Some(text) = message.text() {
-                let mut it = text.splitn(2, ' ');
-                let Some(command) = it.next() else {
-                    tracing::info!("Empty message");
-                    return Err(invalid_request());
-                };
-                let params = it.next().unwrap_or_default();
-
-                return telegram_service
-                    .dispatch_command(
-                        ChatContext {
-                            bot,
-                            sender: &sender,
-                            chat: &message.chat,
-                            transport_service,
-                            user_and_endpoint: user_and_endpoint.as_ref(),
-                            is_admin,
-                        },
-                        command,
-                        params,
-                    )
-                    .await;
-            } else {
-                tracing::debug!("Skip message: {message:?}");
-            }
-        }
-        // Callback from inline keyboard
-        UpdateKind::CallbackQuery(_callback_query) => {
-            return Err(error::invalid_request(
-                "Inline keyboard isn't supported yet",
-            ));
-        }
-        _ => {
-            tracing::debug!("Skip update: {update:?}");
-        }
-    }
-    Err(invalid_request())
 }
