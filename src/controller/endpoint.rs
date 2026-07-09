@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use axum::{
-    Extension, Router,
+    Extension, Json, Router,
     extract::{Path, Query},
     middleware, routing,
 };
@@ -20,7 +20,7 @@ use crate::{
     controller::{self, MaybeSuccessResponse, PaginationQuery},
     db::{
         custom_type::{Id, TransportServiceType},
-        entity::{Endpoint, EndpointColumn, SubscriptionColumn, User},
+        entity::{Endpoint, EndpointColumn, SubscriptionColumn, TransportServiceColumn, User},
     },
     error::{self, NotifyExchangeResult},
     service::transport::http::HttpService,
@@ -32,6 +32,11 @@ where
 {
     let sub_router = Router::<S>::new()
         .route("/", routing::get(get_endpoints))
+        .route("/http", routing::post(create_http_endpoint))
+        .route(
+            "/http-transport-service",
+            routing::get(get_http_transport_services),
+        )
         .route(
             "/{:endpoint_id}",
             routing::get(get_endpoint_info).delete(delete_endpoint),
@@ -88,6 +93,34 @@ struct GetEndpointInfoResponse {
     updated_at: DateTimeUtc,
     transport_service_name: String,
     owner_name: String,
+}
+
+#[derive(Serialize)]
+struct HttpTransportServiceInfo {
+    id: Id,
+    name: String,
+    description: Option<String>,
+}
+
+#[derive(Serialize)]
+struct GetHttpTransportServicesResponse {
+    transport_services: Vec<HttpTransportServiceInfo>,
+}
+
+#[derive(Deserialize, Validate)]
+struct CreateHttpEndpointRequest {
+    pub transport_service_id: Id,
+    #[validate(length(min = 4, max = 128))]
+    pub name: String,
+    #[validate(length(min = 4, max = 128), regex(path = *crate::model::CODE_CHARS))]
+    pub code: String,
+    #[validate(length(max = 1024))]
+    pub description: Option<String>,
+}
+
+#[derive(Serialize)]
+struct CreateHttpEndpointResponse {
+    id: Id,
 }
 
 #[derive(Serialize)]
@@ -251,6 +284,66 @@ async fn get_endpoint_info(
             .unwrap_or_else(|| "DELETED".to_string()),
     }
     .into())
+}
+
+async fn get_http_transport_services(
+    Extension(req_ctx): Extension<RequestContext>,
+    Query(pagination): Query<PaginationQuery>,
+) -> MaybeSuccessResponse<GetHttpTransportServicesResponse> {
+    pagination.validate()?;
+    let context = &req_ctx.global;
+
+    let transport_services = context
+        .transport_service_service()
+        .list_pagination_service(
+            context.db(),
+            Cond::all()
+                .add(TransportServiceColumn::TransportServiceType.eq(TransportServiceType::Http))
+                .add(TransportServiceColumn::Enabled.eq(true)),
+            vec![(
+                TransportServiceColumn::CreatedAt.into_simple_expr(),
+                Order::Desc,
+            )],
+            (pagination.page - 1) * pagination.size,
+            pagination.size,
+        )
+        .await?
+        .into_iter()
+        .map(|s| HttpTransportServiceInfo {
+            id: s.id,
+            name: s.name,
+            description: s.description,
+        })
+        .collect();
+
+    Ok(GetHttpTransportServicesResponse { transport_services }.into())
+}
+
+async fn create_http_endpoint(
+    Extension(req_ctx): Extension<RequestContext>,
+    Json(req): Json<CreateHttpEndpointRequest>,
+) -> MaybeSuccessResponse<CreateHttpEndpointResponse> {
+    req.validate()?;
+
+    let context = &req_ctx.global;
+    let user = &req_ctx.user_session()?.user;
+
+    let endpoint = context
+        .transaction(async |conn| {
+            HttpService::new(context)
+                .create_endpoint(
+                    conn,
+                    user,
+                    req.transport_service_id,
+                    &req.code,
+                    &req.name,
+                    req.description.as_deref(),
+                )
+                .await
+        })
+        .await?;
+
+    Ok(CreateHttpEndpointResponse { id: endpoint.id }.into())
 }
 
 async fn delete_endpoint(
