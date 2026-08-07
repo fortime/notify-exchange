@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Check typos
-        uses: crate-ci/typos@v1.34.0
+        uses: crate-ci/typos@v1.49.0
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
